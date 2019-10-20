@@ -1,0 +1,68 @@
+---
+- hosts: all
+  remote_user: root
+  gather_facts: yes
+  tasks:
+    - name: Setup CentOS
+      when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+      block:
+      - name: Install EPEL
+        package:
+          name: epel-release
+          state: present
+      - name: Install development packages
+        command: yum group install "Development Tools" -y
+      - name: Set up kubernetes repo
+        yum_repository:
+          name: kubernetes
+          description: Google Cloud Repo
+          baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+          gpgcheck: no
+      - name: Install tools and utilities
+        package:
+          name: "{{item}}"
+          state: present
+        with_items:
+          - kubectl
+          - htop
+          - wget
+      - name: Install golang
+        package:
+          name: golang
+          state: present
+      - name: Add golang bin path
+        lineinfile:
+          path: /root/.bashrc
+          line: 'export PATH=$PATH:/root/go/bin/'
+          state: present
+      - name: Get jb
+        command: go get github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb
+      - name: get gojsontoyaml
+        command: go get github.com/brancz/gojsontoyaml
+      - name: get embedmd
+        command: go get github.com/campoy/embedmd
+      - name: Make code directory
+        file:
+          path: /root/code
+          state: directory
+      - name: Get helm
+        get_url:
+          url: https://get.helm.sh/helm-v2.15.0-linux-amd64.tar.gz
+          dest: /root/helm-v2.15.0-linux-amd64.tar.gz
+      - name: Make helm dir
+        file:
+          path: /root/helm
+          state: directory
+      - name: Open helm tarball
+        unarchive:
+          src: /root/helm-v2.15.0-linux-amd64.tar.gz
+          remote_src: yes
+          dest: /root/helm/
+      - name: Install helm and tiller
+        file:
+          src: /root/helm/linux-amd64/{{item}}
+          dest: /usr/local/bin/{{item}}
+          state: link
+        with_items:
+          - helm
+          - tiller
