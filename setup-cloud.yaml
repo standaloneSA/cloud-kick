@@ -32,6 +32,7 @@
         with_items:
           - kubectl
           - htop
+          - bash-completion
           - wget
       - name: Setup kubectl bash completion
         lineinfile:
