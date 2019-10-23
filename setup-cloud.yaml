@@ -1,8 +1,15 @@
 ---
 - hosts: all
+  vars: 
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   remote_user: root
-  gather_facts: yes
+  gather_facts: no
+  pre_tasks:
+    - name: Install Python
+      raw: yum install python -y
   tasks:
+    - name: Gather Facts
+      setup:
     - name: Setup CentOS
       when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
       block:
@@ -26,6 +33,11 @@
           - kubectl
           - htop
           - wget
+      - name: Setup kubectl bash completion
+        lineinfile:
+          path: /root/.bashrc
+          line: 'source <(kubectl completion bash)'
+          state: present
       - name: Install golang
         package:
           name: golang
@@ -66,3 +78,21 @@
         with_items:
           - helm
           - tiller
+      - name: Pull the latest jsonnet
+        git:
+          repo: 'https://github.com/google/jsonnet.git'
+          dest: /root/code/jsonnet
+      - name: Compile jsonnet
+        command: make
+        args:
+          chdir: /root/code/jsonnet
+          creates: /root/code/jsonnet/jsonnet
+      - name: Install jsonnet
+        command: make install
+        args:
+          chdir: /root/code/jsonnet
+          creates: /usr/local/bin/jsonnet
+      - name: Pull kube-prometheus
+        git:
+          repo: 'https://github.com/coreos/kube-prometheus.git'
+          dest: /root/code/kube-prometheus
